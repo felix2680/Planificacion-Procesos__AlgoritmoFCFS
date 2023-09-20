@@ -13,7 +13,7 @@ public class CapturarProcesos extends javax.swing.JFrame {
 
     List<Proceso> listaProceso;
     Proceso p;
-    //EjecutarProcesos e;
+    EjecutarProcesos e;
     char[] operaciones = {'+','-','*','/','%'};
 
     public CapturarProcesos() {
@@ -21,7 +21,7 @@ public class CapturarProcesos extends javax.swing.JFrame {
         this.setLocationRelativeTo(null);
         this.getContentPane().setBackground(Color.decode("#71C5E8"));
 
-    //    e = new EjecutarProcesos();
+        e = new EjecutarProcesos();
         listaProceso = new ArrayList<>();
     }
 
@@ -96,8 +96,8 @@ public class CapturarProcesos extends javax.swing.JFrame {
     private void btnAceptarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAceptarActionPerformed
         cantidadProcesos = (int) spCantidadProcesos.getValue();
         llenarDatos();
-        //e.inicializarPrograma(listaProceso);
-        //e.setVisible(true);
+        e.inicializarPrograma(listaProceso);
+        e.setVisible(true);
         this.setVisible(false);
     }//GEN-LAST:event_btnAceptarActionPerformed
 
