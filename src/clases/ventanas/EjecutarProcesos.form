@@ -38,7 +38,7 @@
                       <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
                       <Component id="lblLotesPendientes" max="32767" attributes="0"/>
                       <EmptySpace max="-2" attributes="0"/>
-                      <Component id="txtLotesPendientes" min="-2" pref="46" max="-2" attributes="0"/>
+                      <Component id="txtProcesosPendientes" min="-2" pref="46" max="-2" attributes="0"/>
                       <EmptySpace min="-2" pref="43" max="-2" attributes="0"/>
                   </Group>
               </Group>
@@ -76,7 +76,7 @@
                   </Group>
                   <Group type="103" alignment="0" groupAlignment="3" attributes="0">
                       <Component id="lblLotesPendientes" alignment="3" min="-2" pref="35" max="-2" attributes="0"/>
-                      <Component id="txtLotesPendientes" alignment="3" min="-2" pref="35" max="-2" attributes="0"/>
+                      <Component id="txtProcesosPendientes" alignment="3" min="-2" pref="35" max="-2" attributes="0"/>
                   </Group>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -105,7 +105,7 @@
         <Property name="text" type="java.lang.String" value="Procesos en estado nuevo"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="txtLotesPendientes">
+    <Component class="javax.swing.JTextField" name="txtProcesosPendientes">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
         <Property name="background" type="java.awt.Color" editor="org.netbeans.beaninfo.editors.ColorEditor">

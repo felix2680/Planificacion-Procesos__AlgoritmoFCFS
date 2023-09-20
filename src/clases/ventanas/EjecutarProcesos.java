@@ -7,6 +7,7 @@ import java.awt.event.KeyListener;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
@@ -16,10 +17,10 @@ import javax.swing.table.DefaultTableModel;
 
 public class EjecutarProcesos extends JFrame implements KeyListener {
 
-    List<List<Proceso>> lotes;
+    Queue<Proceso> lotes;
     private static Timer timerAnimation;
     private int contadorGlobal = 0;
-    private int numLotesPendientes = 0;
+    private int numProcesosPendientes = 0;
     private int tiempoRestante = 0;
     private int tiempoEstimado = 0;
     private int tiempoTranscurrido = 0;
@@ -37,14 +38,13 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         tblColaBloqueados.getColumnModel().getColumn(0).setPreferredWidth(5);
     }
 
-    public void inicializarPrograma(List<Proceso> listaProceso) {
-        this.lotes = dividirPorLotes(listaProceso);
-
-        numLotesPendientes = lotes.size();
-        txtLotesPendientes.setText("" + numLotesPendientes);
+    public void inicializarPrograma(Queue<Proceso> listaProceso) {
+        lotes = listaProceso;
+        numProcesosPendientes = lotes.size();
+        txtProcesosPendientes.setText("" + numProcesosPendientes);
     }
 
-    public void actualizarLoteEnEjecucion(List<Proceso> p) {
+    public void actualizarColaListos(List<Proceso> p) {
         DefaultTableModel model = (DefaultTableModel) tblLoteEjecucion.getModel();
 
         // Elimina todas las filas existentes en la tabla
@@ -80,25 +80,6 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         }
     }
 
-    public List<List<Proceso>> dividirPorLotes(List<Proceso> listaProceso) {
-        int tamanioLotes = 4;
-        List<List<Proceso>> ListaLotes = new ArrayList<>();
-        List<Proceso> loteActual = new ArrayList<>();
-
-        for (Proceso proceso : listaProceso) {
-            loteActual.add(proceso);
-            if (loteActual.size() == tamanioLotes) {
-                ListaLotes.add(loteActual);
-                loteActual = new ArrayList<>();
-            }
-        }
-
-        if (!loteActual.isEmpty()) {
-            ListaLotes.add(loteActual);
-        }
-        return ListaLotes;
-    }
-
     public void iniciarSimulacion() {
         // Cancelar y purgar el timerAnimation si ya existe
         if (timerAnimation != null) {
@@ -110,7 +91,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         EjecutarProcesos.timerAnimation = new Timer();
 
         // Actualizar el número de lotes pendientes
-        txtLotesPendientes.setText("" + (--numLotesPendientes));
+        txtProcesosPendientes.setText("" + (--numProcesosPendientes));
 
         TimerTask tareaAnimacion;
         tareaAnimacion = new TimerTask() {
@@ -119,9 +100,9 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
             public void run() {
                 // Mientras haya lotes en la lista
                 while (!lotes.isEmpty()) {
-                    List<Proceso> lista = lotes.get(0);
+                    List<Proceso> lista = (List<Proceso>) lotes.poll();
                     // Actualizar el lote en ejecución
-                    actualizarLoteEnEjecucion(lista);
+                    actualizarColaListos(lista);
 
                     // Mientras haya procesos en el lote
                     while (!lista.isEmpty()) {
@@ -153,7 +134,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                                     proceso.establecerTiempoRestante(tiempoRestante + 1);
                                     proceso.establecerInterrumpido(true);
                                     lista.add(proceso);
-                                    actualizarLoteEnEjecucion(lista);
+                                    actualizarColaListos(lista);
                                     hayInterrupcion = false;
                                     break;
                                 }
@@ -185,16 +166,16 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                     }
 
                     // Actualizar el número de lotes pendientes y eliminar el lote procesado
-                    if (numLotesPendientes > 0) {
-                        numLotesPendientes--;
+                    if (numProcesosPendientes > 0) {
+                        numProcesosPendientes--;
                     }
                     lotes.remove(lista);
-                    txtLotesPendientes.setText("" + numLotesPendientes);
+                    txtProcesosPendientes.setText("" + numProcesosPendientes);
                 }
 
                 // Finalizar la simulación y limpiar la interfaz
                 actualizarProcesoEnEjecucion(new Proceso());
-                actualizarLoteEnEjecucion(new ArrayList<>());
+                actualizarColaListos(new ArrayList<>());
                 txtLotesContador.setText("" + contadorGlobal);
                 txtTiempoTranscurrido.setText("" + 0);
                 txtTiempoRestante.setText("" + 0);
@@ -212,7 +193,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private void initComponents() {
 
         lblLotesPendientes = new javax.swing.JLabel();
-        txtLotesPendientes = new javax.swing.JTextField();
+        txtProcesosPendientes = new javax.swing.JTextField();
         panelColaListos = new javax.swing.JPanel();
         jScrollPane10 = new javax.swing.JScrollPane();
         tblLoteEjecucion = new javax.swing.JTable();
@@ -243,10 +224,10 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         lblLotesPendientes.setFont(new java.awt.Font("Segoe UI", 3, 18)); // NOI18N
         lblLotesPendientes.setText("Procesos en estado nuevo");
 
-        txtLotesPendientes.setEditable(false);
-        txtLotesPendientes.setBackground(new java.awt.Color(255, 255, 255));
-        txtLotesPendientes.setFont(new java.awt.Font("Monospaced", 2, 18)); // NOI18N
-        txtLotesPendientes.setText("0");
+        txtProcesosPendientes.setEditable(false);
+        txtProcesosPendientes.setBackground(new java.awt.Color(255, 255, 255));
+        txtProcesosPendientes.setFont(new java.awt.Font("Monospaced", 2, 18)); // NOI18N
+        txtProcesosPendientes.setText("0");
 
         panelColaListos.setBackground(new java.awt.Color(255, 255, 255));
         panelColaListos.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0), 2), "Cola de listos", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, new java.awt.Font("Segoe UI", 3, 14))); // NOI18N
@@ -485,7 +466,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                         .addGap(10, 10, 10)
                         .addComponent(lblLotesPendientes, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(txtLotesPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(txtProcesosPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(43, 43, 43)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(panelColaBloqueados, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -514,7 +495,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                             .addComponent(lblContadorGlobal)))
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(lblLotesPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(txtLotesPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(txtProcesosPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(panelColaBloqueados, javax.swing.GroupLayout.DEFAULT_SIZE, 319, Short.MAX_VALUE)
@@ -557,8 +538,8 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private javax.swing.JTable tblLotesTerminados;
     private javax.swing.JTextField txtID;
     private javax.swing.JTextField txtLotesContador;
-    private javax.swing.JTextField txtLotesPendientes;
     private javax.swing.JTextField txtOperacion;
+    private javax.swing.JTextField txtProcesosPendientes;
     private javax.swing.JTextField txtTiempoEstimado;
     private javax.swing.JTextField txtTiempoRestante;
     private javax.swing.JTextField txtTiempoTranscurrido;
