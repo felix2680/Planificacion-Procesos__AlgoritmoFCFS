@@ -1,40 +1,20 @@
 package clases.ventanas;
 
-
+import clases.ListaProcesos;
 import clases.Proceso;
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
 
 public class CapturarProcesos extends javax.swing.JFrame {
 
-    private int cantidadProcesos;
-
-    List<Proceso> listaProceso;
-    Proceso p;
     EjecutarProcesos e;
-    char[] operaciones = {'+','-','*','/','%'};
-
+    ListaProcesos lista;
+    
     public CapturarProcesos() {
         initComponents();
         this.setLocationRelativeTo(null);
         this.getContentPane().setBackground(Color.decode("#71C5E8"));
 
         e = new EjecutarProcesos();
-        listaProceso = new ArrayList<>();
-    }
-
-    public void llenarDatos() {
-        for (int i = 1; i <= cantidadProcesos; i++) {
-            p = new Proceso();
-            p.establecerID(i);
-            p.establecerDato1(new Random().nextInt(100)+1);
-            p.establecerDato2(new Random().nextInt(100)+1);
-            p.establecerOperacion(operaciones[new Random().nextInt(5)]);
-            p.establecerTiempoEstimado(new Random().nextInt(12)+7);
-            listaProceso.add(p);
-        }
     }
 
     @SuppressWarnings("unchecked")
@@ -94,9 +74,8 @@ public class CapturarProcesos extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnAceptarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAceptarActionPerformed
-        cantidadProcesos = (int) spCantidadProcesos.getValue();
-        llenarDatos();
-        e.inicializarPrograma(listaProceso);
+        lista = new ListaProcesos((int) spCantidadProcesos.getValue());
+        e.inicializarPrograma(lista.getColaProcesos());
         e.setVisible(true);
         this.setVisible(false);
     }//GEN-LAST:event_btnAceptarActionPerformed
