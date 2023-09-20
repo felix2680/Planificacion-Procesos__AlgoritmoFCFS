@@ -4,9 +4,7 @@ import clases.Proceso;
 import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -17,7 +15,7 @@ import javax.swing.table.DefaultTableModel;
 
 public class EjecutarProcesos extends JFrame implements KeyListener {
 
-    Queue<Proceso> lotes;
+    Queue<Proceso> colaNuevos;
     private static Timer timerAnimation;
     private int contadorGlobal = 0;
     private int numProcesosPendientes = 0;
@@ -27,6 +25,8 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private boolean procesoPausado = false;
     private boolean hayError = false;
     private boolean hayInterrupcion = false;
+    private int contadorMemoria = 0;
+    private final int MAXIMO_MEMORIA = 50;
 
     public EjecutarProcesos() {
         initComponents();
@@ -39,12 +39,12 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     }
 
     public void inicializarPrograma(Queue<Proceso> listaProceso) {
-        lotes = listaProceso;
-        numProcesosPendientes = lotes.size();
+        colaNuevos = listaProceso;
+        numProcesosPendientes = colaNuevos.size();
         txtProcesosPendientes.setText("" + numProcesosPendientes);
     }
 
-    public void actualizarColaListos(List<Proceso> p) {
+    public void actualizarColaListos(Queue<Proceso> p) {
         DefaultTableModel model = (DefaultTableModel) tblLoteEjecucion.getModel();
 
         // Elimina todas las filas existentes en la tabla
@@ -59,7 +59,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         }
     }
 
-    public void eliminarProcesosEnLote() {
+    public void eliminarProcesosEnCola() {
         DefaultTableModel model = (DefaultTableModel) tblLoteEjecucion.getModel();
         model.removeRow(0);
 
@@ -90,60 +90,40 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         // Crear un nuevo timerAnimation
         EjecutarProcesos.timerAnimation = new Timer();
 
-        // Actualizar el número de lotes pendientes
-        txtProcesosPendientes.setText("" + (--numProcesosPendientes));
-
         TimerTask tareaAnimacion;
         tareaAnimacion = new TimerTask() {
 
             @Override
             public void run() {
-                // Mientras haya lotes en la lista
-                while (!lotes.isEmpty()) {
-                    List<Proceso> lista = (List<Proceso>) lotes.poll();
-                    // Actualizar el lote en ejecución
-                    actualizarColaListos(lista);
-
-                    // Mientras haya procesos en el lote
-                    while (!lista.isEmpty()) {
-                        Proceso proceso = lista.get(0);
-                        if (proceso.obtenerInterrumpido()) {
-                            tiempoEstimado = proceso.obtenerTiempoRestante();
-                            tiempoTranscurrido = proceso.obtenerTiempoEstimado() - tiempoEstimado;
+                // Mientras haya procesos en la lista
+                while (!colaNuevos.isEmpty()) {
+                    Queue<Proceso> colaListos = new LinkedList<>();
+                    colaListos.offer(colaNuevos.poll());
+                    contadorMemoria++;
+                    txtProcesosPendientes.setText("" + (--numProcesosPendientes));
+                    actualizarColaListos(colaListos);
+                    if (contadorMemoria < MAXIMO_MEMORIA) {
+                        Proceso p = colaListos.poll();
+                        if (p.obtenerInterrumpido()) {
+                            tiempoEstimado = p.obtenerTiempoRestante();
+                            tiempoTranscurrido = p.obtenerTiempoEstimado() - tiempoEstimado;
                         } else {
-                            tiempoEstimado = proceso.obtenerTiempoEstimado();
+                            tiempoEstimado = p.obtenerTiempoEstimado();
                         }
+                        actualizarProcesoEnEjecucion(p);
                         tiempoRestante = tiempoEstimado;
-
-                        // Ejecutar el proceso mientras haya tiempo restante
                         while (tiempoRestante >= 0) {
                             if (!procesoPausado) {
-                                actualizarProcesoEnEjecucion(proceso);
+
+                                actualizarProcesoEnEjecucion(p);
                                 txtLotesContador.setText("" + contadorGlobal);
                                 txtTiempoRestante.setText("" + tiempoRestante);
                                 txtTiempoTranscurrido.setText("" + tiempoTranscurrido);
-
-                                //Si hay error se sale del ciclo
-                                if (hayError) {
-                                    proceso.establecerError(true);
-                                    hayError = false;
-                                    break;
-                                }
-                                //si hay interrupcion se sale del ciclo
-                                if (hayInterrupcion) {
-                                    proceso.establecerTiempoRestante(tiempoRestante + 1);
-                                    proceso.establecerInterrumpido(true);
-                                    lista.add(proceso);
-                                    actualizarColaListos(lista);
-                                    hayInterrupcion = false;
-                                    break;
-                                }
                                 try {
                                     Thread.sleep(900);
                                 } catch (InterruptedException ex) {
                                     Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
                                 }
-
                                 tiempoTranscurrido++;
                                 tiempoRestante--;
                                 contadorGlobal++;
@@ -155,31 +135,11 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                                 }
                             }
                         }
-
-                        // Eliminar el proceso de la lista y actualizar procesos terminados
-                        lista.remove(proceso);
-                        if (!lista.contains(proceso)) {
-                            actualizarProcesosTerminados(proceso);
-                        }
-                        eliminarProcesosEnLote();
                         tiempoTranscurrido = 0;
                     }
-
-                    // Actualizar el número de lotes pendientes y eliminar el lote procesado
-                    if (numProcesosPendientes > 0) {
-                        numProcesosPendientes--;
-                    }
-                    lotes.remove(lista);
-                    txtProcesosPendientes.setText("" + numProcesosPendientes);
                 }
-
-                // Finalizar la simulación y limpiar la interfaz
-                actualizarProcesoEnEjecucion(new Proceso());
-                actualizarColaListos(new ArrayList<>());
-                txtLotesContador.setText("" + contadorGlobal);
-                txtTiempoTranscurrido.setText("" + 0);
-                txtTiempoRestante.setText("" + 0);
-                EjecutarProcesos.timerAnimation.cancel();
+                timerAnimation.cancel();
+                System.out.println("Finalizado");
 
             }
         };
