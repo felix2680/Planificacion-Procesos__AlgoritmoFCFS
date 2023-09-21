@@ -45,18 +45,19 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     public void inicializarPrograma(Queue<Proceso> listaProceso) {
         colaNuevos = listaProceso;
         numProcesosPendientes = colaNuevos.size();
-
+        int aux = numProcesosPendientes;
         if (colaNuevos.size() >= MAXIMO_MEMORIA) {
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < MAXIMO_MEMORIA; i++) {
                 colaListos.offer(colaNuevos.poll());
                 numProcesosPendientes--;
             }
         } else {
-            for (int i = 0; i < numProcesosPendientes; i++) {
+            for (int i = 0; i < aux; i++) {
                 colaListos.offer(colaNuevos.poll());
                 numProcesosPendientes--;
             }
         }
+
         txtProcesosPendientes.setText("" + (numProcesosPendientes));
     }
 
