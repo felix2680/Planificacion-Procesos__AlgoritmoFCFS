@@ -16,6 +16,7 @@ import javax.swing.table.DefaultTableModel;
 public class EjecutarProcesos extends JFrame implements KeyListener {
 
     Queue<Proceso> colaNuevos;
+    Queue<Proceso> colaListos;
     private static Timer timerAnimation;
     private int contadorGlobal = 0;
     private int numProcesosPendientes = 0;
@@ -25,9 +26,8 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private boolean procesoPausado = false;
     private boolean hayError = false;
     private boolean hayInterrupcion = false;
-    private int contadorMemoria = 0;
-    private final int MAXIMO_MEMORIA = 50;
-
+    private final int MAXIMO_MEMORIA = 3;
+    private int contadorBloqueo;
     public EjecutarProcesos() {
         initComponents();
         this.setLocationRelativeTo(null);
@@ -36,6 +36,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         this.addKeyListener(this);
         tblLoteEjecucion.getColumnModel().getColumn(0).setPreferredWidth(5);
         tblColaBloqueados.getColumnModel().getColumn(0).setPreferredWidth(5);
+        colaListos = new LinkedList<>();
     }
 
     public void inicializarPrograma(Queue<Proceso> listaProceso) {
@@ -91,56 +92,75 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         EjecutarProcesos.timerAnimation = new Timer();
 
         TimerTask tareaAnimacion;
+        if (colaNuevos.size() >= MAXIMO_MEMORIA) {
+            for (int i = 0; i < 3; i++) {
+                colaListos.offer(colaNuevos.poll());
+            }
+        } else {
+            for (int i = 0; i < numProcesosPendientes; i++) {
+                colaListos.offer(colaNuevos.poll());
+            }
+        }
         tareaAnimacion = new TimerTask() {
 
             @Override
             public void run() {
-                // Mientras haya procesos en la lista
-                while (!colaNuevos.isEmpty()) {
-                    Queue<Proceso> colaListos = new LinkedList<>();
-                    colaListos.offer(colaNuevos.poll());
-                    contadorMemoria++;
+                // Mientras haya procesos pendientes
+                while (numProcesosPendientes > 0) {
                     txtProcesosPendientes.setText("" + (--numProcesosPendientes));
                     actualizarColaListos(colaListos);
-                    if (contadorMemoria < MAXIMO_MEMORIA) {
-                        Proceso p = colaListos.poll();
-                        if (p.obtenerInterrumpido()) {
-                            tiempoEstimado = p.obtenerTiempoRestante();
-                            tiempoTranscurrido = p.obtenerTiempoEstimado() - tiempoEstimado;
-                        } else {
-                            tiempoEstimado = p.obtenerTiempoEstimado();
-                        }
-                        actualizarProcesoEnEjecucion(p);
-                        tiempoRestante = tiempoEstimado;
-                        while (tiempoRestante >= 0) {
-                            if (!procesoPausado) {
+                    Proceso p = colaListos.poll();
+                    if (p.obtenerInterrumpido()) {
+                        tiempoEstimado = p.obtenerTiempoRestante();
+                        tiempoTranscurrido = p.obtenerTiempoEstimado() - tiempoEstimado;
+                    } else {
+                        tiempoEstimado = p.obtenerTiempoEstimado();
+                    }
+                    actualizarProcesoEnEjecucion(p);
+                    eliminarProcesosEnCola();
+                    tiempoRestante = tiempoEstimado;
+                    while (tiempoRestante >= 0) {
+                        if (!procesoPausado) {
+                            actualizarProcesoEnEjecucion(p);
+                            txtLotesContador.setText("" + contadorGlobal);
+                            txtTiempoRestante.setText("" + tiempoRestante);
+                            txtTiempoTranscurrido.setText("" + tiempoTranscurrido);
 
-                                actualizarProcesoEnEjecucion(p);
-                                txtLotesContador.setText("" + contadorGlobal);
-                                txtTiempoRestante.setText("" + tiempoRestante);
-                                txtTiempoTranscurrido.setText("" + tiempoTranscurrido);
-                                try {
-                                    Thread.sleep(900);
-                                } catch (InterruptedException ex) {
-                                    Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
-                                }
-                                tiempoTranscurrido++;
-                                tiempoRestante--;
-                                contadorGlobal++;
-                            } else {
-                                try {
-                                    Thread.sleep(1);
-                                } catch (InterruptedException ex) {
-                                    Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
-                                }
+                            //Si hay error se sale del ciclo
+                            if (hayError) {
+                                p.establecerError(true);
+                                hayError = false;
+                                break;
+                            }
+                            try {
+                                Thread.sleep(900);
+                            } catch (InterruptedException ex) {
+                                Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            tiempoTranscurrido++;
+                            tiempoRestante--;
+                            contadorGlobal++;
+                        } else {
+                            try {
+                                Thread.sleep(1);
+                            } catch (InterruptedException ex) {
+                                Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
                             }
                         }
-                        tiempoTranscurrido = 0;
                     }
+                    if (!colaListos.contains(p)) {
+                        actualizarProcesosTerminados(p);
+                    }
+                    if (!colaNuevos.isEmpty()) {
+                        colaListos.offer(colaNuevos.poll());
+                    }
+                    tiempoTranscurrido = 0;
                 }
+                actualizarProcesoEnEjecucion(new Proceso());
+                txtTiempoTranscurrido.setText("" + 0);
+                txtTiempoRestante.setText("" + 0);
                 timerAnimation.cancel();
                 System.out.println("Finalizado");
-
             }
         };
 
@@ -522,7 +542,6 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         if (e.getKeyChar() == 'p' || e.getKeyChar() == 'P') {
             procesoPausado = true;
         }
-
     }
 
     @Override
@@ -534,5 +553,4 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     public void keyReleased(KeyEvent e) {
 
     }
-
 }
