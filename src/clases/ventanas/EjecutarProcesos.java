@@ -128,9 +128,12 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
             public void run() {
                 // Mientras haya procesos pendientes
                 while (!colaListos.isEmpty() || numProcesosPendientes > 0 || !colaBloqueados.isEmpty()) {
+                    // Actualiza la cantidad de procesos pendientes en la interfaz
                     txtProcesosPendientes.setText("" + (numProcesosPendientes));
+                    // Actualiza la cola de procesos listos en la interfaz
                     actualizarColaListos(colaListos);
-                    if (colaBloqueados.size() < 3/* && !colaListos.isEmpty()*/) {
+                    // Procesa los procesos en ejecución y la cola de bloqueados
+                    if (colaBloqueados.size() < 3) {
                         Proceso p = colaListos.poll();
                         if (p.obtenerInterrumpido()) {
                             tiempoEstimado = p.obtenerTiempoRestante();
@@ -141,18 +144,20 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                         actualizarProcesoEnEjecucion(p);
                         eliminarProcesosEnCola();
                         tiempoRestante = tiempoEstimado;
+                        // Ejecuta el proceso y actualiza la interfaz durante su ejecución
                         while (tiempoRestante >= 0) {
                             if (!procesoPausado) {
                                 actualizarProcesoEnEjecucion(p);
                                 txtContador.setText("" + contadorGlobal);
                                 txtTiempoRestante.setText("" + tiempoRestante);
                                 txtTiempoTranscurrido.setText("" + tiempoTranscurrido);
-                                //Si hay error se sale del ciclo
+                                // Si hay un error, marca el proceso y sale del ciclo
                                 if (hayError) {
                                     p.establecerError(true);
                                     hayError = false;
                                     break;
                                 }
+                                // Si hay una interrupción, actualiza el proceso y mueve a la cola de bloqueados
                                 if (hayInterrupcion) {
                                     p.establecerTiempoRestante(tiempoRestante);
                                     p.establecerInterrumpido(true);
@@ -161,6 +166,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                                     hayInterrupcion = false;
                                     break;
                                 }
+                                // Maneja los procesos bloqueados y los mueve a la cola de listos si superan el tiempo máximo bloqueados
                                 if (!colaBloqueados.isEmpty()) {
                                     Iterator<Proceso> iterator = colaBloqueados.iterator();
                                     while (iterator.hasNext()) {
@@ -194,6 +200,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                                 }
                             }
                         }
+                        // Proceso terminado, actualiza la interfaz y maneja las colas
                         if (!colaListos.contains(p) && !p.obtenerInterrumpido()) {
                             actualizarProcesosTerminados(p);
                             if (!colaNuevos.isEmpty()) {
@@ -214,7 +221,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                         }
                         tiempoTranscurrido = 0;
                     } else {
-                        // Actualizar la interfaz aunque haya elementos en la cola de bloqueados
+                        // Actualiza la interfaz aunque haya elementos en la cola de bloqueados
                         if (!colaBloqueados.isEmpty()) {
                             Iterator<Proceso> iterator = colaBloqueados.iterator();
                             contadorGlobal++;
@@ -237,12 +244,13 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                             actualizarProcesosBloqueados(colaBloqueados);
                             txtContador.setText("" + contadorGlobal);
                         }
-                        // Actualizar la interfaz en caso de no haber procesos en la cola de listos
+                        // Actualiza la interfaz en caso de no haber procesos en la cola de listos
                         actualizarProcesoEnEjecucion(new Proceso());
                         txtTiempoTranscurrido.setText("" + 0);
                         txtTiempoRestante.setText("" + 0);
                     }
                 }
+                // Actualiza la interfaz al finalizar
                 actualizarProcesoEnEjecucion(new Proceso());
                 txtTiempoTranscurrido.setText("" + 0);
                 txtTiempoRestante.setText("" + 0);
