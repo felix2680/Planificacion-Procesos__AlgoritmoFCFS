@@ -4,6 +4,7 @@ import clases.Proceso;
 import java.awt.Color;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
@@ -16,6 +17,8 @@ import javax.swing.table.DefaultTableModel;
 public class EjecutarProcesos extends JFrame implements KeyListener {
 
     Queue<Proceso> colaNuevos;
+    Queue<Proceso> colaListos;
+    Queue<Proceso> colaBloqueados;
     private static Timer timerAnimation;
     private int contadorGlobal = 0;
     private int numProcesosPendientes = 0;
@@ -25,8 +28,9 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private boolean procesoPausado = false;
     private boolean hayError = false;
     private boolean hayInterrupcion = false;
-    private int contadorMemoria = 0;
-    private final int MAXIMO_MEMORIA = 50;
+    private final int MAXIMO_MEMORIA = 3;
+    private int contadorBloqueo;
+    private final int TIEMPO_MAXIMO_BLOQUEADO = 10;
 
     public EjecutarProcesos() {
         initComponents();
@@ -36,12 +40,27 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         this.addKeyListener(this);
         tblLoteEjecucion.getColumnModel().getColumn(0).setPreferredWidth(5);
         tblColaBloqueados.getColumnModel().getColumn(0).setPreferredWidth(5);
+        colaListos = new LinkedList<>();
+        colaBloqueados = new LinkedList<>();
     }
 
     public void inicializarPrograma(Queue<Proceso> listaProceso) {
         colaNuevos = listaProceso;
         numProcesosPendientes = colaNuevos.size();
-        txtProcesosPendientes.setText("" + numProcesosPendientes);
+        int aux = numProcesosPendientes;
+        if (colaNuevos.size() >= MAXIMO_MEMORIA) {
+            for (int i = 0; i < MAXIMO_MEMORIA; i++) {
+                colaListos.offer(colaNuevos.poll());
+                numProcesosPendientes--;
+            }
+        } else {
+            for (int i = 0; i < aux; i++) {
+                colaListos.offer(colaNuevos.poll());
+                numProcesosPendientes--;
+            }
+        }
+
+        txtProcesosPendientes.setText("" + (numProcesosPendientes));
     }
 
     public void actualizarColaListos(Queue<Proceso> p) {
@@ -62,7 +81,18 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     public void eliminarProcesosEnCola() {
         DefaultTableModel model = (DefaultTableModel) tblLoteEjecucion.getModel();
         model.removeRow(0);
+    }
 
+    public void actualizarProcesosBloqueados(Queue<Proceso> p) {
+        DefaultTableModel model = (DefaultTableModel) tblColaBloqueados.getModel();
+        int rowCount = model.getRowCount();
+        for (int i = rowCount - 1; i >= 0; i--) {
+            model.removeRow(i);
+        }
+
+        for (Proceso proceso : p) {
+            model.addRow(new Object[]{proceso.obtenerID(), proceso.obtenerContador()});
+        }
     }
 
     public void actualizarProcesoEnEjecucion(Proceso p) {
@@ -91,18 +121,19 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         EjecutarProcesos.timerAnimation = new Timer();
 
         TimerTask tareaAnimacion;
+
         tareaAnimacion = new TimerTask() {
 
             @Override
             public void run() {
-                // Mientras haya procesos en la lista
-                while (!colaNuevos.isEmpty()) {
-                    Queue<Proceso> colaListos = new LinkedList<>();
-                    colaListos.offer(colaNuevos.poll());
-                    contadorMemoria++;
-                    txtProcesosPendientes.setText("" + (--numProcesosPendientes));
+                // Mientras haya procesos pendientes
+                while (!colaListos.isEmpty() || numProcesosPendientes > 0 || !colaBloqueados.isEmpty()) {
+                    // Actualiza la cantidad de procesos pendientes en la interfaz
+                    txtProcesosPendientes.setText("" + (numProcesosPendientes));
+                    // Actualiza la cola de procesos listos en la interfaz
                     actualizarColaListos(colaListos);
-                    if (contadorMemoria < MAXIMO_MEMORIA) {
+                    // Procesa los procesos en ejecución y la cola de bloqueados
+                    if (colaBloqueados.size() < 3) {
                         Proceso p = colaListos.poll();
                         if (p.obtenerInterrumpido()) {
                             tiempoEstimado = p.obtenerTiempoRestante();
@@ -111,14 +142,48 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                             tiempoEstimado = p.obtenerTiempoEstimado();
                         }
                         actualizarProcesoEnEjecucion(p);
+                        eliminarProcesosEnCola();
                         tiempoRestante = tiempoEstimado;
+                        // Ejecuta el proceso y actualiza la interfaz durante su ejecución
                         while (tiempoRestante >= 0) {
                             if (!procesoPausado) {
-
                                 actualizarProcesoEnEjecucion(p);
-                                txtLotesContador.setText("" + contadorGlobal);
+                                txtContador.setText("" + contadorGlobal);
                                 txtTiempoRestante.setText("" + tiempoRestante);
                                 txtTiempoTranscurrido.setText("" + tiempoTranscurrido);
+                                // Si hay un error, marca el proceso y sale del ciclo
+                                if (hayError) {
+                                    p.establecerError(true);
+                                    hayError = false;
+                                    break;
+                                }
+                                // Si hay una interrupción, actualiza el proceso y mueve a la cola de bloqueados
+                                if (hayInterrupcion) {
+                                    p.establecerTiempoRestante(tiempoRestante);
+                                    p.establecerInterrumpido(true);
+                                    colaBloqueados.offer(p);
+                                    actualizarProcesosBloqueados(colaBloqueados);
+                                    hayInterrupcion = false;
+                                    break;
+                                }
+                                // Maneja los procesos bloqueados y los mueve a la cola de listos si superan el tiempo máximo bloqueados
+                                if (!colaBloqueados.isEmpty()) {
+                                    Iterator<Proceso> iterator = colaBloqueados.iterator();
+                                    while (iterator.hasNext()) {
+                                        Proceso proceso = iterator.next();
+                                        proceso.incrementarContador();
+
+                                        if (proceso.obtenerContador() >= TIEMPO_MAXIMO_BLOQUEADO) {
+                                            colaListos.offer(proceso);
+                                            proceso.establecerInterrumpido(false);
+                                            proceso.restablecerContador();
+                                            iterator.remove();  // Elimina el proceso de la cola de bloqueados de forma segura
+                                            actualizarProcesosBloqueados(colaBloqueados);
+                                            actualizarColaListos(colaListos);
+                                        }
+                                    }
+                                }
+                                actualizarProcesosBloqueados(colaBloqueados);
                                 try {
                                     Thread.sleep(900);
                                 } catch (InterruptedException ex) {
@@ -135,15 +200,64 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                                 }
                             }
                         }
+                        // Proceso terminado, actualiza la interfaz y maneja las colas
+                        if (!colaListos.contains(p) && !p.obtenerInterrumpido()) {
+                            actualizarProcesosTerminados(p);
+                            if (!colaNuevos.isEmpty()) {
+                                colaListos.offer(colaNuevos.poll());
+                                actualizarColaListos(colaListos);
+                                actualizarProcesoEnEjecucion(new Proceso());
+                                txtTiempoTranscurrido.setText("" + 0);
+                                txtTiempoRestante.setText("" + 0);
+                                try {
+                                    Thread.sleep(500);
+                                } catch (InterruptedException ex) {
+                                    Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            }
+                            if (numProcesosPendientes > 0) {
+                                numProcesosPendientes--;
+                            }
+                        }
                         tiempoTranscurrido = 0;
+                    } else {
+                        // Actualiza la interfaz aunque haya elementos en la cola de bloqueados
+                        if (!colaBloqueados.isEmpty()) {
+                            Iterator<Proceso> iterator = colaBloqueados.iterator();
+                            contadorGlobal++;
+                            while (iterator.hasNext()) {
+                                Proceso proceso = iterator.next();
+                                proceso.incrementarContador();
+                                if (proceso.obtenerContador() >= TIEMPO_MAXIMO_BLOQUEADO) {
+                                    colaListos.offer(proceso);
+                                    proceso.establecerInterrumpido(false);
+                                    iterator.remove();  // Elimina el proceso de la cola de bloqueados de forma segura
+                                    actualizarProcesosBloqueados(colaBloqueados);
+                                    actualizarColaListos(colaListos);
+                                }
+                                try {
+                                    Thread.sleep(300);
+                                } catch (InterruptedException ex) {
+                                    Logger.getLogger(EjecutarProcesos.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+                            }
+                            actualizarProcesosBloqueados(colaBloqueados);
+                            txtContador.setText("" + contadorGlobal);
+                        }
+                        // Actualiza la interfaz en caso de no haber procesos en la cola de listos
+                        actualizarProcesoEnEjecucion(new Proceso());
+                        txtTiempoTranscurrido.setText("" + 0);
+                        txtTiempoRestante.setText("" + 0);
                     }
                 }
+                // Actualiza la interfaz al finalizar
+                actualizarProcesoEnEjecucion(new Proceso());
+                txtTiempoTranscurrido.setText("" + 0);
+                txtTiempoRestante.setText("" + 0);
                 timerAnimation.cancel();
                 System.out.println("Finalizado");
-
             }
         };
-
         // Programar la tarea de animación para ejecutarse cada 1000 ms (1 segundo)
         timerAnimation.scheduleAtFixedRate(tareaAnimacion, 0, 1000);
     }
@@ -161,7 +275,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         jScrollPane2 = new javax.swing.JScrollPane();
         tblLotesTerminados = new javax.swing.JTable();
         lblContadorGlobal = new javax.swing.JLabel();
-        txtLotesContador = new javax.swing.JTextField();
+        txtContador = new javax.swing.JTextField();
         panelProcesoEjecucion = new javax.swing.JPanel();
         lblID = new javax.swing.JLabel();
         lblOperacion = new javax.swing.JLabel();
@@ -279,10 +393,10 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         lblContadorGlobal.setFont(new java.awt.Font("Segoe UI", 3, 18)); // NOI18N
         lblContadorGlobal.setText("Contador global:");
 
-        txtLotesContador.setEditable(false);
-        txtLotesContador.setBackground(new java.awt.Color(255, 255, 255));
-        txtLotesContador.setFont(new java.awt.Font("Monospaced", 2, 18)); // NOI18N
-        txtLotesContador.setText("0");
+        txtContador.setEditable(false);
+        txtContador.setBackground(new java.awt.Color(255, 255, 255));
+        txtContador.setFont(new java.awt.Font("Monospaced", 2, 18)); // NOI18N
+        txtContador.setText("0");
 
         panelProcesoEjecucion.setBackground(new java.awt.Color(255, 255, 255));
         panelProcesoEjecucion.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0), 2), "Proceso en ejecución", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, new java.awt.Font("Segoe UI", 3, 14))); // NOI18N
@@ -435,7 +549,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
                         .addComponent(lblContadorGlobal)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(txtLotesContador, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(txtContador, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(panelProcesosTerminados, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(0, 9, Short.MAX_VALUE))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
@@ -451,7 +565,7 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
                     .addGroup(layout.createSequentialGroup()
                         .addGap(1, 1, 1)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(txtLotesContador, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(txtContador, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(lblContadorGlobal)))
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(lblLotesPendientes, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -496,8 +610,8 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private javax.swing.JTable tblColaBloqueados;
     private javax.swing.JTable tblLoteEjecucion;
     private javax.swing.JTable tblLotesTerminados;
+    private javax.swing.JTextField txtContador;
     private javax.swing.JTextField txtID;
-    private javax.swing.JTextField txtLotesContador;
     private javax.swing.JTextField txtOperacion;
     private javax.swing.JTextField txtProcesosPendientes;
     private javax.swing.JTextField txtTiempoEstimado;
@@ -522,7 +636,6 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         if (e.getKeyChar() == 'p' || e.getKeyChar() == 'P') {
             procesoPausado = true;
         }
-
     }
 
     @Override
@@ -534,5 +647,4 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     public void keyReleased(KeyEvent e) {
 
     }
-
 }

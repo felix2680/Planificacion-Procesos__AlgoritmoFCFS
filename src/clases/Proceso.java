@@ -9,7 +9,7 @@ public class Proceso {
     private double resultado;
     private boolean error;
     private boolean interrumpido;
-    
+    private int contadorBloqueado;
     private int tiempoRestante;
     public  Proceso(){
         this.ID = 0;
@@ -20,6 +20,7 @@ public class Proceso {
         this.resultado = 0;
         this.error = false;
         this.tiempoRestante = 0;
+        this.contadorBloqueado = 0;
     }
     public void establecerID(int ID){
         this.ID = ID;
@@ -46,7 +47,9 @@ public class Proceso {
     public void establecerTiempoRestante(int tiempoRestante){
         this.tiempoRestante = tiempoRestante;
     }
-
+    public void incrementarContador(){
+        this.contadorBloqueado++;
+    }
     public int obtenerID(){
         return ID;
     }
@@ -74,6 +77,13 @@ public class Proceso {
     
     public boolean obtenerInterrumpido(){
         return this.interrumpido;
+    }
+    
+    public int obtenerContador(){
+        return this.contadorBloqueado;
+    }
+    public void restablecerContador(){
+         this.contadorBloqueado = 0;
     }
     private double realizarOperacon(){        
         switch(this.obtenerOperacion()){   
