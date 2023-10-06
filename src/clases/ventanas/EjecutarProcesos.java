@@ -29,7 +29,6 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
     private boolean hayError = false;
     private boolean hayInterrupcion = false;
     private final int MAXIMO_MEMORIA = 3;
-    private int contadorBloqueo;
     private final int TIEMPO_MAXIMO_BLOQUEADO = 10;
 
     public EjecutarProcesos() {
