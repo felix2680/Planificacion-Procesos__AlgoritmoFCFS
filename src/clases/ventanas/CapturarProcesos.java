@@ -1,7 +1,6 @@
 package clases.ventanas;
 
 import clases.ListaProcesos;
-import clases.Proceso;
 import java.awt.Color;
 
 public class CapturarProcesos extends javax.swing.JFrame {

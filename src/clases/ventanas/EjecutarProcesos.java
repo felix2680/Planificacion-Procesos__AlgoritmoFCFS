@@ -7,6 +7,7 @@ import java.awt.event.KeyListener;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.logging.Level;
@@ -75,6 +76,19 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
         for (Proceso proceso : p) {
             model.addRow(new Object[]{proceso.obtenerID(), proceso.obtenerTiempoEstimado(), proceso.obtenerTiempoRestante()});
         }
+    }
+
+    public void agregarProceso() {
+        char[] OPERACIONES = {'+', '-', '*', '/', '%'};
+        Proceso p = new Proceso();
+        p.establecerID(numProcesosPendientes + 1);
+        p.establecerDato1(new Random().nextInt(100) + 1);
+        p.establecerDato2(new Random().nextInt(100) + 1);
+        p.establecerOperacion(OPERACIONES[new Random().nextInt(5)]);
+        p.establecerTiempoEstimado(new Random().nextInt(12) + 7);
+        colaNuevos.offer(p);
+        numProcesosPendientes++;
+        txtProcesosPendientes.setText("" + numProcesosPendientes);
     }
 
     public void eliminarProcesosEnCola() {
@@ -624,16 +638,24 @@ public class EjecutarProcesos extends JFrame implements KeyListener {
             procesoPausado = false;
         }
 
-        if (e.getKeyChar() == 'e' || e.getKeyChar() == 'E') {
+        if (e.getKeyChar() == 'w' || e.getKeyChar() == 'W') {
             hayError = true;
         }
 
-        if (e.getKeyChar() == 'i' || e.getKeyChar() == 'I') {
+        if (e.getKeyChar() == 'e' || e.getKeyChar() == 'E') {
             hayInterrupcion = true;
         }
 
         if (e.getKeyChar() == 'p' || e.getKeyChar() == 'P') {
             procesoPausado = true;
+        }
+        if (e.getKeyChar() == 'n' || e.getKeyChar() == 'N') {
+            agregarProceso();
+            if ((colaListos.size() + colaBloqueados.size()) < 2) {
+                colaListos.offer(colaNuevos.poll());
+                actualizarColaListos(colaListos);
+                txtProcesosPendientes.setText(String.valueOf(--numProcesosPendientes));
+            }
         }
     }
 
