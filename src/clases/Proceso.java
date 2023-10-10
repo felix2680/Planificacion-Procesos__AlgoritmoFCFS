@@ -21,6 +21,7 @@ public class Proceso {
         this.error = false;
         this.tiempoRestante = 0;
         this.contadorBloqueado = 0;
+        this.interrumpido = false;
     }
     public void establecerID(int ID){
         this.ID = ID;
